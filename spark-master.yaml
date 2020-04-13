@@ -1,0 +1,127 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-master-service
+  namespace: smartcloud-spark
+  labels:
+    k8s-app: spark-master
+    ver: 2.4.5
+spec:
+  ports:
+  - name: p6066
+    port: 6066
+  - name: p7070
+    port: 7070
+  - name: work
+    port: 7077
+  - name: webui
+    port: 8080
+  - name: hadoopui
+    port: 50070
+  - name: p10020
+    port: 10020
+  - name: p13562
+    port: 13562
+  - name: p14000
+    port: 14000
+  - name: p19888
+    port: 19888
+  - name: p50010
+    port: 50010
+  - name: p50020
+    port: 50020
+  - name: p50075
+    port: 50075
+  - name: p50090
+    port: 50090
+  - name: p50470
+    port: 50470
+  - name: p50475
+    port: 50475
+  - name: p8020
+    port: 8020
+  - name: p8081
+    port: 8081
+  - name: p9000
+    port: 9000
+  clusterIP: None
+  selector:
+    k8s-app: spark-master
+    ver: 2.4.5
+  
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: spark-master
+  namespace: smartcloud-spark
+spec:
+  selector:
+    matchLabels:
+      k8s-app: spark-master
+      ver: 2.4.5
+  serviceName: "spark-master-service"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        k8s-app: spark-master
+        ver: 2.4.5
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: spark-master
+        image: 172.27.16.3:9084/xzzh/spark:2.4.5.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - start-spark
+        - "master"
+        ports:
+          - containerPort: 6066
+          - containerPort: 7070
+          - containerPort: 7077
+          - containerPort: 8080
+          - containerPort: 50070
+          - containerPort: 10020
+          - containerPort: 13562
+          - containerPort: 14000
+          - containerPort: 19888
+          - containerPort: 50010
+          - containerPort: 50020
+          - containerPort: 50075
+          - containerPort: 50090
+          - containerPort: 50470
+          - containerPort: 50475
+          - containerPort: 8020
+          - containerPort: 8081
+          - containerPort: 9000
+        env:
+          - name: "SPARK_DAEMON_JAVA_OPTS"
+            value: "-Dspark.deploy.recoveryMode=ZOOKEEPER  -Dspark.deploy.zookeeper.url=zk-1.smartcloud-zk:2181,zk-2.smartcloud-zk:2181,zk-3.smartcloud-zk:2181 -Dspark.deploy.zookeeper.dir=/spark"
+        volumeMounts:
+        - name: hdfs-volume
+          mountPath: "/opt/hdfs"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 35
+          periodSeconds: 35
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 35
+          periodSeconds: 35
+  volumeClaimTemplates:
+  - metadata:
+      name: hdfs-volume
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: spark-block
+      resources:
+        requests:
+          storage: 10Gi

@@ -1,0 +1,54 @@
+###################################################################################################################
+# 创建Redis使用的池以及StorageClass.
+###################################################################################################################
+# 创建influxDB使用的池
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: smartcloud-spark-pool
+  namespace: rook-ceph-sys
+spec:
+# 值为host时，每个数据块将放置在不同的主机上
+  failureDomain: host
+  replicated:
+    size: 2
+    
+---
+# 创建influxDB使用的StorageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: spark-block
+   annotations: 
+      k8s.eip.work/storageType: ceph_client_provisioner
+# Change "rook-ceph" provisioner prefix to match the operator namespace if needed   
+provisioner: rook-ceph-sys.rbd.csi.ceph.com
+parameters:
+    # clusterID is the namespace where the rook cluster is running
+    # If you change this namespace, also change the namespace below where the secret namespaces are defined
+    clusterID: rook-ceph-sys
+
+    # Ceph pool into which the RBD image shall be created
+    pool: smartcloud-spark-pool
+
+    # RBD image format. Defaults to "2".
+    imageFormat: "2"
+
+    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
+    imageFeatures: layering
+
+    # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+    # in the same namespace as the cluster.
+    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph-sys
+    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph-sys
+    # Specify the filesystem type of the volume. If not specified, csi-provisioner
+    # will set default as `ext4`.
+    csi.storage.k8s.io/fstype: ext4
+# uncomment the following to use rbd-nbd as mounter on supported nodes
+#mounter: rbd-nbd
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+

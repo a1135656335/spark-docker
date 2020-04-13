@@ -1,25 +1,41 @@
-FROM singularities/hadoop:2.8
+FROM singularities/hadoop:2.7
 MAINTAINER Singularities
 
 # Version
-ENV SPARK_VERSION=2.2.1
+ENV SPARK_VERSION=2.4.5
 
 # Set home
 ENV SPARK_HOME=/usr/local/spark-$SPARK_VERSION
 
+# 跟新下载源为aliyun
+COPY sources.list /etc/apt/sources.list
+
+# apt update操作时提示过期问题: -o Acquire::Check-Valid-Until=false
 # Install dependencies
-RUN apt-get update \
+RUN apt-get -o Acquire::Check-Valid-Until=false update \
   && DEBIAN_FRONTEND=noninteractive apt-get install \
     -yq --no-install-recommends  \
       python python3 \
-  && apt-get clean \
-	&& rm -rf /var/lib/apt/lists/*
+      && apt-get install -yq locales \
+      && locale-gen zh_CN.UTF-8 \
+      && DEBIAN_FRONTEND=noninteractive dpkg-reconfigure locales \
+      && locale-gen zh_CN.UTF-8 \
+      && apt-get clean \
+      && rm -rf /var/lib/apt/lists/* \
+      && /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+      && echo 'Asia/Shanghai' >/etc/timezone
+
+ENV LANG zh_CN.UTF-8
+
+ENV LANGUAGE zh_CN:zh
+
+ENV LC_ALL zh_CN.UTF-8
 
 # Install Spark
 RUN mkdir -p "${SPARK_HOME}" \
   && export ARCHIVE=spark-$SPARK_VERSION-bin-without-hadoop.tgz \
   && export DOWNLOAD_PATH=apache/spark/spark-$SPARK_VERSION/$ARCHIVE \
-  && curl -sSL https://mirrors.ocf.berkeley.edu/$DOWNLOAD_PATH | \
+  && curl -sSL https://mirror.bit.edu.cn/$DOWNLOAD_PATH | \
     tar -xz -C $SPARK_HOME --strip-components 1 \
   && rm -rf $ARCHIVE
 COPY spark-env.sh $SPARK_HOME/conf/spark-env.sh
